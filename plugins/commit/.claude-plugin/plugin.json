@@ -1,0 +1,11 @@
+{
+  "name": "commit",
+  "displayName": "Commit",
+  "description": "Analyze git changes and generate conventional commit messages",
+  "author": {
+    "name": "donfaquir"
+  },
+  "repository": "https://github.com/donfaquir/claude-code-skills",
+  "license": "MIT",
+  "keywords": ["git", "commit", "conventional-commits"]
+}

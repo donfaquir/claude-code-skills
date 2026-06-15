@@ -1,0 +1,11 @@
+{
+  "name": "setup-worklog",
+  "displayName": "Setup Worklog",
+  "description": "Deploy a worklog system for automatic session continuity across Claude Code sessions",
+  "author": {
+    "name": "donfaquir"
+  },
+  "repository": "https://github.com/donfaquir/claude-code-skills",
+  "license": "MIT",
+  "keywords": ["worklog", "session", "continuity", "productivity"]
+}

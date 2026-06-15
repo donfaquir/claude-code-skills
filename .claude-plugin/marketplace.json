@@ -1,0 +1,25 @@
+{
+  "name": "claude-code-skills",
+  "description": "A collection of practical Claude Code skills for daily development workflows",
+  "version": "1.0.0",
+  "owner": {
+    "name": "donfaquir"
+  },
+  "plugins": [
+    {
+      "name": "setup-worklog",
+      "source": "./plugins/setup-worklog",
+      "description": "Deploy a worklog system for automatic session continuity across Claude Code sessions"
+    },
+    {
+      "name": "commit",
+      "source": "./plugins/commit",
+      "description": "Analyze git changes and generate conventional commit messages"
+    },
+    {
+      "name": "plan-task",
+      "source": "./plugins/plan-task",
+      "description": "Generate design doc and acceptance criteria, then break down into implementation specs"
+    }
+  ]
+}
