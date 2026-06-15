@@ -1,0 +1,40 @@
+node_modules/
+dist/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+.env
+.env.local
+.env.*
+!.env.example
+
+# Claude Code worktrees and lock files
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+
+target/
+
+
+# Traces
+trace_*.json
+
+# Local Claude Code settings (machine-specific, should not be committed)
+.claude/settings.local.json
+.worktrees/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+.idea/
+.cursor/
+.qoder/
+
