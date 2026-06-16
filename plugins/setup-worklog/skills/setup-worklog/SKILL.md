@@ -1,12 +1,12 @@
 ---
 name: setup-worklog
-description: 在当前项目部署 worklog 工作日志系统。建 docs/worklog/ 目录 + SessionStart hook + CLAUDE.md 约束，让 Claude 每次 session 自动留下执行轨迹，方便次日续接。
+description: 在当前项目部署 worklog 工作日志系统。建 worklog/ 目录 + SessionStart hook + CLAUDE.md 约束，让 Claude 每次 session 自动留下执行轨迹，方便次日续接。
 user_invocable: true
 ---
 
 在当前项目部署一套 worklog 工作日志系统，分三部分：
 
-1. `docs/worklog/` 目录（每日一份 md，记录每个 session 做了什么）
+1. `worklog/` 目录（每日一份 md，记录每个 session 做了什么）
 2. `.claude/settings.json` 的 SessionStart hook（自动写入 session 头）
 3. `.claude/CLAUDE.md` 的 worklog 约束（让 Claude 在关键节点主动 append）
 
@@ -16,78 +16,45 @@ user_invocable: true
 
 并行执行：
 - `ls -la .claude/ 2>/dev/null` — 看是否有 settings.json / CLAUDE.md
-- `ls -d docs documentation doc 2>/dev/null` — 找文档根目录
 - `ls CLAUDE.md 2>/dev/null` — 看项目根是否有 CLAUDE.md
 
 根据结果决定：
-- **文档根路径**: 默认 `docs/`；若项目用 `documentation/` 或 `doc/`，沿用现有命名；若都没有，建 `docs/`
 - **CLAUDE.md 位置**: 优先 `.claude/CLAUDE.md`；其次项目根 `CLAUDE.md`；都没有就在 `.claude/CLAUDE.md` 新建
 
 若任何路径有歧义，用 AskUserQuestion 让用户选。
 
-## Step 2: 创建 worklog 目录
-
-执行（`<docs>` 替换为 Step 1 决定的文档根）：
+## Step 2: 创建 worklog 目录并配置 gitignore
 
 ```bash
-mkdir -p <docs>/worklog
+mkdir -p worklog
 ```
 
-写入 `<docs>/worklog/README.md`（**先 Read 检查是否已存在，存在则跳过**）：
+在项目根 `.gitignore` 中追加 `worklog/`（**先检查是否已包含，已有则跳过**）：
 
-```markdown
-# Worklog 工作日志
-
-记录 Claude Code session 的执行轨迹，方便第二天接续工作。
-
-## 文件组织
-
-- 每天一个文件: `YYYY-MM-DD.md`
-- 每个 Claude session 是文件内的一个段落，由 SessionStart hook 自动生成开头
-- 段落内容由 Claude 在关键节点主动追加：完成任务、做关键决策、遇到阻塞时
-
-## 段落格式
-
-\`\`\`markdown
-## 2026-05-22 17:30:00 · session:abc12345 · branch:feature/xxx-1
-<由 hook 自动生成>
-
-### 17:32 完成 X
-- **做了什么**: ...
-- **为什么**: ...
-- **下一步**: ...
-\`\`\`
-
-## Git
-
-每日 worklog 文件不进 git (`.gitignore` 已配置)，仅本机可见。
+```bash
+grep -qxF 'worklog/' .gitignore 2>/dev/null || echo 'worklog/' >> .gitignore
 ```
 
-写入 `<docs>/worklog/.gitignore`（**先 Read 检查，存在则跳过**）：
-
-```
-*.md
-!README.md
-```
+若 `.gitignore` 不存在，上述命令会自动创建。
 
 ## Step 3: 配置 SessionStart hook
 
 读取 `.claude/settings.json`（若不存在则视为 `{}`）。
 
 **关键合并规则**：
-- 如果 `hooks.SessionStart` 已有任何条目，检查其 command 是否包含 `docs/worklog` 字样
+- 如果 `hooks.SessionStart` 已有任何条目，检查其 command 是否包含 `worklog` 字样
   - 若已有 worklog hook → 跳过本步，告诉用户「已存在，跳过」
   - 若有别的 SessionStart hook → **append** 一条，不要覆盖
 - 如果整个 `hooks.SessionStart` 不存在 → 新增
 
-要 append/写入的 hook 条目（**注意 `<docs>` 要替换成实际文档根目录**）：
+要 append/写入的 hook 条目：
 
 ```json
 {
   "hooks": [
     {
       "type": "command",
-      "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/<docs>/worklog\" && jq -r --arg ts \"$(date '+%Y-%m-%d %H:%M:%S')\" --arg br \"$(cd \"$CLAUDE_PROJECT_DIR\" && git branch --show-current 2>/dev/null || echo none)\" '\"\\n## \\($ts) · session:\\(.session_id[0:8]) · branch:\\($br)\\n\"' >> \"$CLAUDE_PROJECT_DIR/<docs>/worklog/$(date '+%Y-%m-%d').md\""
+      "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/worklog\" && jq -r --arg ts \"$(date '+%Y-%m-%d %H:%M:%S')\" --arg br \"$(cd \"$CLAUDE_PROJECT_DIR\" && git branch --show-current 2>/dev/null || echo none)\" '\"\\n## \\($ts) · session:\\(.session_id[0:8]) · branch:\\($br)\\n\"' >> \"$CLAUDE_PROJECT_DIR/worklog/$(date '+%Y-%m-%d').md\""
     }
   ]
 }
@@ -103,13 +70,13 @@ jq -e '.hooks.SessionStart[] | .hooks[] | select(.type == "command") | .command'
 
 退出码 0 + 打印命令 = 成功。
 
-**端到端验证 hook 命令本身可跑**（替换 `<docs>`）：
+**端到端验证 hook 命令本身可跑**：
 
 ```bash
 CMD=$(jq -r '.hooks.SessionStart[].hooks[] | select(.command | contains("worklog")) | .command' .claude/settings.json | head -1)
 echo '{"session_id":"verifytest12345","source":"startup"}' | env CLAUDE_PROJECT_DIR="$PWD" bash -c "$CMD"
-cat "<docs>/worklog/$(date '+%Y-%m-%d').md"
-rm -f "<docs>/worklog/$(date '+%Y-%m-%d').md"
+cat "worklog/$(date '+%Y-%m-%d').md"
+rm -f "worklog/$(date '+%Y-%m-%d').md"
 ```
 
 应输出一行 `## YYYY-MM-DD HH:MM:SS · session:verifyte · branch:xxx`。
@@ -123,18 +90,18 @@ rm -f "<docs>/worklog/$(date '+%Y-%m-%d').md"
   - 若已含 → 跳过本步
   - 若未含 → 用 Edit 在文件末尾 append 下面的片段
 
-要 append 的片段（**`<docs>` 替换为实际文档根**）：
+要 append 的片段：
 
 ```markdown
 
 ## Worklog 工作日志习惯
 
-每个 Claude session 必须维护 `<docs>/worklog/YYYY-MM-DD.md`，让用户次日打开就能续接工作。
+每个 Claude session 必须维护 `worklog/YYYY-MM-DD.md`，让用户次日打开就能续接工作。
 
 ### Session 启动时（第一次回应用户之前）
 
 必读最近一份 worklog 获取上下文：
-1. 先读 `<docs>/worklog/<今天>.md`；如不存在或为空,读 `ls -1t <docs>/worklog/*.md | head -2` 找最近 1-2 天的文件
+1. 先读 `worklog/<今天>.md`；如不存在或为空,读 `ls -1t worklog/*.md | head -2` 找最近 1-2 天的文件
 2. 重点看最近 session 段落里的「下一步」字段,作为接续点
 3. SessionStart hook 已自动在当日 worklog 写入本 session 的段落头(`## 时间 · session:xxx · branch:xxx`),无需手写
 
@@ -174,5 +141,5 @@ rm -f "<docs>/worklog/$(date '+%Y-%m-%d').md"
 
 - **不是 git 仓库**: hook 命令里 `git branch --show-current` 会失败，但有 `|| echo none` 兜底，仍可工作
 - **没装 jq**: 测试 `command -v jq`，若缺失则告诉用户先 `brew install jq` 再重跑 skill
-- **项目用其他文档语言（英文）**: CLAUDE.md 片段保持中文（用户偏好），README 模板也保持中文，与现有约定一致
-- **用户拒绝 git ignore worklog**: 询问用户是否真的想把每日 worklog 提交进 git；如愿意，跳过写 `.gitignore`
+- **项目用其他文档语言（英文）**: CLAUDE.md 片段保持中文（用户偏好），与现有约定一致
+- **用户拒绝 git ignore worklog**: 询问用户是否真的想把每日 worklog 提交进 git；如愿意，跳过往 `.gitignore` 追加
