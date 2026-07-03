@@ -20,6 +20,11 @@
       "name": "plan-task",
       "source": "./plugins/plan-task",
       "description": "Generate design doc and acceptance criteria, then break down into implementation specs"
+    },
+    {
+      "name": "design-review-board",
+      "source": "./plugins/design-review-board",
+      "description": "Multi-role review board — 6 roles review design proposals in parallel with auto-converging rounds"
     }
   ]
 }

@@ -11,6 +11,7 @@
 | [setup-worklog](plugins/setup-worklog/) | 一键部署工作日志系统。自动记录每个 session 的执行轨迹，第二天打开直接续接。 |
 | [commit](plugins/commit/) | 分析 git 变更，自动生成 conventional commit 格式的提交信息，确认后再提交。 |
 | [plan-task](plugins/plan-task/) | 根据任务描述生成设计文档和验收标准，审批通过后拆分为可执行的实现规格。 |
+| [design-review-board](plugins/design-review-board/) | 多角色评审委员会——6 个角色（架构师、SRE、安全、DBA、QA、产品）并行评审设计方案，多轮自动收敛。 |
 
 ## 安装
 
@@ -28,6 +29,7 @@
 /plugin install setup-worklog@claude-code-skills
 /plugin install commit@claude-code-skills
 /plugin install plan-task@claude-code-skills
+/plugin install design-review-board@claude-code-skills
 ```
 
 ### 手动安装
@@ -37,6 +39,7 @@ git clone https://github.com/donfaquir/claude-code-skills.git
 cp -r claude-code-skills/plugins/setup-worklog ~/.claude/skills/
 cp -r claude-code-skills/plugins/commit ~/.claude/skills/
 cp -r claude-code-skills/plugins/plan-task ~/.claude/skills/
+cp -r claude-code-skills/plugins/design-review-board ~/.claude/skills/
 ```
 
 > **注意：** 如果 `~/.claude/skills/` 目录不存在，先执行 `mkdir -p ~/.claude/skills/` 创建，然后重启 Claude Code。
@@ -49,6 +52,7 @@ cp -r claude-code-skills/plugins/plan-task ~/.claude/skills/
 /setup-worklog
 /commit
 /plan-task
+/design-review-board
 ```
 
 ### setup-worklog
@@ -95,6 +99,12 @@ type(scope): description
 
 所有文档输出到 `plan/<task-slug>/` 目录，方便版本管理和团队评审。
 
+### design-review-board
+
+模拟一个 6 人评审委员会，在编码前对设计方案进行充分审视。6 个独立角色（架构师、SRE、安全工程师、DBA、QA、产品）并行评审，按严重度（Critical / High / Medium / Low）归类问题，方案经过多轮"评审→修改"自动收敛（最少 2 轮，最多 3 轮），直到所有 Critical 和 High 问题解决。最终输出终版设计文档和完整的评审记录。
+
+**设计动机**：曾因方案仅从开发者视角评审，导致"服务器重启后内存状态丢失"这类运维不可接受的缺陷在实现后才被发现。多角色评审可在设计阶段拦截此类问题。
+
 ## 项目结构
 
 ```
@@ -114,11 +124,17 @@ claude-code-skills/
 │   │   └── skills/
 │   │       └── commit/
 │   │           └── SKILL.md
-│   └── plan-task/
+│   ├── plan-task/
+│   │   ├── .claude-plugin/
+│   │   │   └── plugin.json
+│   │   └── skills/
+│   │       └── plan-task/
+│   │           └── SKILL.md
+│   └── design-review-board/
 │       ├── .claude-plugin/
 │       │   └── plugin.json
 │       └── skills/
-│           └── plan-task/
+│           └── design-review-board/
 │               └── SKILL.md
 └── README.md
 ```

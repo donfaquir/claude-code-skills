@@ -1,0 +1,11 @@
+{
+  "name": "design-review-board",
+  "displayName": "Design Review Board",
+  "description": "Multi-role review board for design proposals — 3-6 roles selected by content analysis, parallel review with adversarial verification and auto-converging rounds",
+  "author": {
+    "name": "donfaquir"
+  },
+  "repository": "https://github.com/donfaquir/claude-code-skills",
+  "license": "MIT",
+  "keywords": ["design-review", "architecture", "multi-role", "review-board"]
+}
