@@ -17,9 +17,20 @@ Steps:
    - Types: feat, fix, chore, docs, refactor, test, style, perf
    - Scope: the module or area affected
    - Description: concise, in English, focus on "why" not "what"
-   - Keep it to a single line, ideally ≤50 chars and never >72 chars
-   - Do NOT add a body. No bullet points, no trailing summary, no "BREAKING CHANGE" footer unless the user explicitly asks
+   - Subject line: ideally ≤50 chars and never >72 chars
+   - Body is optional — add a brief one-line description only for complex changes
+   - Do NOT add bullet points, trailing summaries, or "BREAKING CHANGE" footer unless the user explicitly asks
    - If multiple logical changes are mixed together, suggest splitting the commit instead of writing a long message
+   - Always append a `Co-authored-by` trailer to declare the AI model used. Identify your model name (e.g. Opus 4.6, Sonnet 4) and format as:
+     ```
+     Co-authored-by: Claude (<model>) <noreply@anthropic.com>
+     ```
+     Separate the trailer from the subject (or body) with a blank line. Example:
+     ```
+     feat(auth): add JWT token validation
+
+     Co-authored-by: Claude (Opus 4.6) <noreply@anthropic.com>
+     ```
 
 4. Present the commit message to the user using AskUserQuestion with two options:
    - "Looks good, commit it" — proceed to commit with the generated message
