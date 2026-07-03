@@ -12,42 +12,37 @@ user_invocable: true
 
 整个流程必须 idempotent — 重复运行不破坏已有内容。
 
-## Step 1: 探查项目结构
+## 前置检查
 
-并行执行：
-- `ls -la .claude/ 2>/dev/null` — 看是否有 settings.json / CLAUDE.md
-- `ls CLAUDE.md 2>/dev/null` — 看项目根是否有 CLAUDE.md
+执行 `command -v jq`。若 jq 不存在，立即报错让用户安装后重跑，不要继续后续步骤。
 
-根据结果决定：
-- **CLAUDE.md 位置**: 优先 `.claude/CLAUDE.md`；其次项目根 `CLAUDE.md`；都没有就在 `.claude/CLAUDE.md` 新建
+## Step 1: 探查 + 创建目录（并行）
 
-若任何路径有歧义，用 AskUserQuestion 让用户选。
-
-## Step 2: 创建 worklog 目录并配置 gitignore
+一次性并行执行以下命令收集信息并创建目录：
 
 ```bash
-mkdir -p worklog
+# 并行 1: 检查 .claude 目录状态
+ls .claude/settings.json .claude/CLAUDE.md 2>/dev/null; echo "EXIT:$?"
+
+# 并行 2: 检查项目根 CLAUDE.md
+ls CLAUDE.md 2>/dev/null; echo "EXIT:$?"
+
+# 并行 3: 创建 worklog 目录 + gitignore（幂等）
+mkdir -p worklog && (grep -qxF 'worklog/' .gitignore 2>/dev/null || echo 'worklog/' >> .gitignore)
 ```
 
-在项目根 `.gitignore` 中追加 `worklog/`（**先检查是否已包含，已有则跳过**）：
+CLAUDE.md 位置决策：优先 `.claude/CLAUDE.md` → 其次项目根 `CLAUDE.md` → 都没有就新建 `.claude/CLAUDE.md`。
 
-```bash
-grep -qxF 'worklog/' .gitignore 2>/dev/null || echo 'worklog/' >> .gitignore
-```
-
-若 `.gitignore` 不存在，上述命令会自动创建。
-
-## Step 3: 配置 SessionStart hook
+## Step 2: 配置 SessionStart hook
 
 读取 `.claude/settings.json`（若不存在则视为 `{}`）。
 
-**关键合并规则**：
-- 如果 `hooks.SessionStart` 已有任何条目，检查其 command 是否包含 `worklog` 字样
-  - 若已有 worklog hook → 跳过本步，告诉用户「已存在，跳过」
-  - 若有别的 SessionStart hook → **append** 一条，不要覆盖
-- 如果整个 `hooks.SessionStart` 不存在 → 新增
+**合并规则**：
+- `hooks.SessionStart` 中已有含 `worklog` 的 command → 跳过，告诉用户「已存在」
+- 有别的 SessionStart hook → append 一条
+- 不存在 → 新增
 
-要 append/写入的 hook 条目：
+要写入的 hook 条目：
 
 ```json
 {
@@ -60,28 +55,15 @@ grep -qxF 'worklog/' .gitignore 2>/dev/null || echo 'worklog/' >> .gitignore
 }
 ```
 
-把这个对象 push 到 `hooks.SessionStart` 数组。用 Edit 工具精确合并，不要 Write 整个文件覆盖（会丢已有 permissions 等）。
+用 Edit 工具精确合并到 `.claude/settings.json`，不要 Write 整个文件覆盖。
 
-**合并后必须校验**：
-
-```bash
-jq -e '.hooks.SessionStart[] | .hooks[] | select(.type == "command") | .command' .claude/settings.json
-```
-
-退出码 0 + 打印命令 = 成功。
-
-**端到端验证 hook 命令本身可跑**：
+**验证**（一条命令，确认 jq 解析通过即可）：
 
 ```bash
-CMD=$(jq -r '.hooks.SessionStart[].hooks[] | select(.command | contains("worklog")) | .command' .claude/settings.json | head -1)
-echo '{"session_id":"verifytest12345","source":"startup"}' | env CLAUDE_PROJECT_DIR="$PWD" bash -c "$CMD"
-cat "worklog/$(date '+%Y-%m-%d').md"
-rm -f "worklog/$(date '+%Y-%m-%d').md"
+jq -e '.hooks.SessionStart[] | .hooks[] | select(.command | contains("worklog"))' .claude/settings.json >/dev/null && echo "OK"
 ```
 
-应输出一行 `## YYYY-MM-DD HH:MM:SS · session:verifyte · branch:xxx`。
-
-## Step 4: 注入 CLAUDE.md 约束
+## Step 3: 注入 CLAUDE.md 约束
 
 读取目标 CLAUDE.md（Step 1 决定的位置）。
 
@@ -127,7 +109,7 @@ rm -f "worklog/$(date '+%Y-%m-%d').md"
 
 若 CLAUDE.md 文件不存在，Write 一个新文件，内容只含该片段（去掉最前面的空行）。
 
-## Step 5: 总结报告
+## Step 4: 总结报告
 
 向用户报告以下内容（中文）：
 1. 实际创建/合并了哪些文件（用列表，写绝对路径）
@@ -139,7 +121,6 @@ rm -f "worklog/$(date '+%Y-%m-%d').md"
 
 ## 边界情况
 
-- **不是 git 仓库**: hook 命令里 `git branch --show-current` 会失败，但有 `|| echo none` 兜底，仍可工作
-- **没装 jq**: 测试 `command -v jq`，若缺失则告诉用户先 `brew install jq` 再重跑 skill
-- **项目用其他文档语言（英文）**: CLAUDE.md 片段保持中文（用户偏好），与现有约定一致
-- **用户拒绝 git ignore worklog**: 询问用户是否真的想把每日 worklog 提交进 git；如愿意，跳过往 `.gitignore` 追加
+- **不是 git 仓库**: hook 命令里有 `|| echo none` 兜底，可正常工作
+- **项目用其他文档语言（英文）**: CLAUDE.md 片段保持中文（用户偏好）
+- **用户拒绝 git ignore worklog**: 询问用户是否要提交 worklog 进 git；如愿意，跳过 `.gitignore` 追加
